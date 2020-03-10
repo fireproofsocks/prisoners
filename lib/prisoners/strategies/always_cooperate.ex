@@ -1,5 +1,13 @@
 defmodule Prisoners.Strategies.AlwaysCooperate do
   @moduledoc """
-  This strategy will always be cooperate (i.e. always be nice).
+  This strategy will always cooperate (i.e. will always be nice), no matter the opponent and no matter what has happened
+  in the tournament.
   """
+  alias Prisoners.Player
+
+  @behaviour Player
+
+  @impl Player
+  def respond(_opponent_ref, _tournament), do: :cooperate
+
 end

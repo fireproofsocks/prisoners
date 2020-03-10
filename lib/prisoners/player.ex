@@ -4,17 +4,41 @@ defmodule Prisoners.Player do
   """
 
   alias Prisoners.Player
+  alias Prisoners.Tournament
 
-  defstruct pid: nil,
+  @type t :: %__MODULE__{
+               id: identifier,
+               module: atom,
+               points: integer,
+               inbox: %{required(identifier) => [Prisoners.response]},
+               outbox: %{required(identifier) => [Prisoners.response]},
+               meta: map
+             }
+
+  defstruct id: nil,
             module: nil,
             points: 0,
             inbox: %{},
             outbox: %{},
             meta: %{}
 
-  def new(player, opts) do
+  @doc """
+  In order for a player to play, it must respond with either `:cooperate` or `:defect`.
+  """
+  @callback respond(opponent :: identifier, tournament :: Tournament.t) :: Prisoners.response
+
+  defmacro __using__(_opts) do
+    quote do
+    end
+  end
+
+  def new(player_module, opts) do
     %Player{
-      module: player,
+      id: make_ref(),
+      module: player_module,
+      points: 0,
+      inbox: %{},
+      outbox: %{},
       meta: opts
     }
   end
