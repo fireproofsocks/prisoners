@@ -25,10 +25,22 @@ defmodule Prisoners.Player do
   @doc """
   In order for a player to play, it must respond with either `:cooperate` or `:defect`.
   """
-  @callback respond(opponent :: identifier, tournament :: Tournament.t) :: Prisoners.response
+  @callback respond(opponent :: Player.t, tournament :: Tournament.t) :: Prisoners.response
+
+  @doc """
+  This function may be implemented by more advanced strategies that wish to define how exactly a `Player` reproduces.
+  Not all rules engines call this function, and different rules engines may call this function at different times.
+  """
+  @callback reproduce(player :: Player.t, tournament :: Tournament.t) :: [Player.t]
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Player
+
+      @impl Player
+      def reproduce(player, _tournament), do: [player]
+      # A default implementation is provided, but a Strategy may implement their own
+      defoverridable reproduce: 2
     end
   end
 

@@ -31,9 +31,8 @@ defmodule Prisoners.Tournament do
             rules_module: nil,
             meta: %{}
 
-  @spec new(players :: [%Player{}], opts :: keyword) :: Tournament.t
-  def new(players, opts) do
-    rules_module = Keyword.get(opts, :rules_module, Prisoners.RuleEngines.Simple)
+  @spec new(players :: [{module, keyword}], rules_module :: module, opts :: keyword) :: Tournament.t
+  def new(players, rules_module, opts) do
     {players_refs, players_map} = reference_players(players)
     %Tournament{
       id: make_ref(),
@@ -46,6 +45,7 @@ defmodule Prisoners.Tournament do
     }
   end
 
+  # Converts a list of player modules + options to a map
   defp reference_players(players) do
     Enum.map_reduce(players, %{}, fn {module, opts}, acc ->
       case Code.ensure_loaded(module) do
@@ -60,5 +60,13 @@ defmodule Prisoners.Tournament do
     :inet.gethostname()
     |> elem(1)
     |> to_string()
+  end
+
+  @doc """
+  Retrieves the module for the given player.
+  """
+  @spec player(tournament :: Tournament.t, player_ref :: identifier) :: module
+  def player(tournament, player_ref) do
+    get_in(tournament, [Access.key(:players_map), Access.key(player_ref), Access.key(:module)])
   end
 end

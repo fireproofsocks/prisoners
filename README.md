@@ -39,6 +39,8 @@ The main push of the Prisoner's Dilemma is that defection always results in a be
 | A defects    | A: + 2; B: - 1 |   No points    |
 
 
+You can run scripts in the context of your mix project with `mix run -r foo.exs`. See `mix help run` for more information.
+
 ## Links
 
 https://www.wnycstudios.org/podcasts/radiolab/segments/104010-one-good-deed-deserves-another
