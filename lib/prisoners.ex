@@ -25,25 +25,40 @@ defmodule Prisoners do
   def compete(players, rules_module, opts \\ []) when is_list(players) do
     {rounds, opts} = Keyword.pop(opts, :rounds, 1)
 #    tournament = Tournament.new(players, rules_module, opts)
-    Enum.reduce(1..rounds, Tournament.new(players, rules_module, opts), fn _, tournament ->
+    tournament = Enum.reduce(1..rounds, Tournament.new(players, rules_module, opts), fn _, tournament ->
       rules_module.play_round(tournament)
     end)
+    %{tournament | finished_at: DateTime.utc_now()}
 #    rules_module = Keyword.get(opts, :rules_module, Prisoners.RuleEngines.Simple)
 
 #    permutate(tournament.players_refs, [], tournament)
   end
 
-#  def permutate([], acc, tournament), do: acc
-#
-#  def permutate([_player1], acc, tournament), do: acc
-#
-#  def permutate([player1, player2 | rest], acc, tournament) do
-#
-#    result = faceoff(player1, player2, tournament)
-#
+  def permutate([]), do: nil
+
+  def permutate([_player1]), do: nil
+
+#  def permutate([player1, player2]) do
+#    IO.puts("Faceoff!  #{player1} vs #{player2}")
+#  end
+
+  # ABCD -> AB  (ACD, BCD)
+  # ACD  -> AC  (AD, CD)
+  # BCD  -> BC  (BD, CD)
+  # AD
+  # CD
+  # BD
+  # CD !!!
+
+
+  def permutate([player1, player2 | rest]) do
+    IO.puts("Faceoff!  #{player1} vs #{player2}")
+
+    permutate([player1 | rest])
+    permutate([player2 | rest])
 #    spawn( fn -> permutate([player1 | rest], acc, tournament) end)
 #    spawn( fn -> permutate([player2 | rest], acc, tournament) end)
-#  end
+  end
 #
 #  def faceoff(player1, player2, tournament) do
 #    IO.puts("FACE OFF!!!")
@@ -56,4 +71,34 @@ defmodule Prisoners do
 #    player2_response = player2_module.respond(player1, tournament)
 #    IO.puts("#{player1_response} #{player2_response}")
 #  end
+
+#  def shuffle(list), do: shuffle(list, 2)
+#
+#  def shuffle([], _), do: [[]]
+#  def shuffle(_,  0), do: [[]]
+#  def shuffle(list, i) do
+#    for x <- list, y <- shuffle(list, i-1), do: [x|y]
+#  end
+
+  # From http://rosettacode.org/wiki/Combinations#Elixir
+  # Usage:
+  # Prisoners.comb(2, ~w|a b c d |)
+  # [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]]
+  def comb(0, _), do: [[]]
+  def comb(_, []), do: []
+  def comb(m, [h|t]) do
+    (for l <- comb(m-1, t), do: [h|l]) ++ comb(m, t)
+  end
+
+#  def combinations(0, _), do: [[]]
+#  def combinations(_, []), do: []
+#  def combinations(i, [player|rest]) do
+#    (for list <- combinations(i-1, rest), do: [player|list]) ++ combinations(i, rest)
+#  end
+
+  def combinations(0, _), do: [[]]
+  def combinations(_, []), do: []
+  def combinations(i, [player|rest]) do
+    (for list <- combinations(i-1, rest), do: [player|list]) ++ combinations(i, rest)
+  end
 end

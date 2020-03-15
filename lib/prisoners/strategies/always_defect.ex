@@ -5,7 +5,7 @@ defmodule Prisoners.Strategies.AlwaysDefect do
 
   alias Prisoners.Player
 
-  @behaviour Player
+  use Player
 
   @impl Player
   def respond(_opponent_ref, _tournament), do: :defect

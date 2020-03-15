@@ -1,9 +1,9 @@
-defmodule Prisoners.Faceoff do
+defmodule Prisoners.FaceOff do
   @moduledoc """
   Defines a single faceoff between 2 players. This structure is defined as an aid for consistent logging and reporting.
   """
 
-  alias Prisoners.Faceoff
+  alias Prisoners.FaceOff
 
   @type t :: %__MODULE__{
                player1_id: identifier,

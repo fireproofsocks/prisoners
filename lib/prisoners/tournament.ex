@@ -3,7 +3,7 @@ defmodule Prisoners.Tournament do
   Contains data about a specific tournament.
   """
 
-  alias Prisoners.{Player, FaceOff, Tournament}
+  alias Prisoners.{Player, FaceOff, Round, Tournament}
 
   @type t :: %__MODULE__{
           id: identifier,
@@ -13,9 +13,11 @@ defmodule Prisoners.Tournament do
           app_version: String.t(),
           players_count: integer,
           players_map: %{required(identifier) => Player.t},
-          players_refs: [identifier],
+          player_ids: [identifier],
           faceoffs: [FaceOff.t],
-          rules_module: atom,
+          rounds: [Round.t],
+          rules_module: module,
+          response_count_by_type: %{required(atom) => integer},
           meta: map
         }
 
@@ -26,20 +28,23 @@ defmodule Prisoners.Tournament do
             app_version: nil,
             players_count: 0,
             players_map: %{},
-            players_refs: [],
+            player_ids: [],
             faceoffs: [],
+            rounds: [],
             rules_module: nil,
+            response_count_by_type: %{},
             meta: %{}
 
   @spec new(players :: [{module, keyword}], rules_module :: module, opts :: keyword) :: Tournament.t
   def new(players, rules_module, opts) do
-    {players_refs, players_map} = reference_players(players)
+    {player_ids, players_map} = reference_players(players)
     %Tournament{
       id: make_ref(),
       started_at: DateTime.utc_now(),
       hostname: hostname(),
       players_map: players_map,
-      players_refs: players_refs,
+      player_ids: player_ids,
+      faceoffs: [],
       rules_module: rules_module,
       meta: opts
     }
@@ -63,10 +68,10 @@ defmodule Prisoners.Tournament do
   end
 
   @doc """
-  Retrieves the module for the given player.
+  Retrieves the `%Player{}` struct for the given player identifier.
   """
-  @spec player(tournament :: Tournament.t, player_ref :: identifier) :: module
+  @spec player(tournament :: Tournament.t, player_ref :: identifier) :: Player.t
   def player(tournament, player_ref) do
-    get_in(tournament, [Access.key(:players_map), Access.key(player_ref), Access.key(:module)])
+    get_in(tournament, [Access.key(:players_map), Access.key(player_ref)])
   end
 end

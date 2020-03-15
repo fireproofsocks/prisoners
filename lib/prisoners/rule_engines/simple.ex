@@ -16,11 +16,11 @@ defmodule Prisoners.RuleEngines.Simple do
   alias Prisoners.Rules
   use Rules
 
-  @impl Rules
-  def after_faceoff(player, _faceoff, _tournament), do: [player]
-
-  @impl Rules
-  def after_round(player, _faceoff, _tournament), do: [player]
+#  @impl Rules
+#  def after_faceoff(player, _faceoff, _tournament), do: [player]
+#
+#  @impl Rules
+#  def after_round(player, _faceoff, _tournament), do: [player]
 
   @impl Rules
   def calculate_score(_player1, _player2, faceoff, _tournament) do

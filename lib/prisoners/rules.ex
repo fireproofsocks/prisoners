@@ -7,23 +7,23 @@ defmodule Prisoners.Rules do
     """
     alias Prisoners.{FaceOff, Player, Tournament}
 
-    @doc """
-    This callback should be called immediately after a `FaceOff` between two players for each of the two players.
+#    @doc """
+#    This callback should be called immediately after a `FaceOff` between two players for each of the two players.
+#
+#    The rules engine implementation may use this opportunity to knock a player out of the tournament
+#    or to allow the `Player` to reproduce and return additional variants of itself.
+#    """
+#    @callback after_faceoff(player :: Player.t, faceoff :: FaceOff.t, tournament :: Tournament.t) :: [Player.t]
 
-    The rules engine implementation may use this opportunity to knock a player out of the tournament
-    or to allow the `Player` to reproduce and return additional variants of itself.
-    """
-    @callback after_faceoff(player :: Player.t, faceoff :: FaceOff.t, tournament :: Tournament.t) :: [Player.t]
-
-    @doc """
-    This callback is called after a completed Tournament round for each of the players competing in the `Tournament`.
-
-    Depending on the rules engine implementation, this may cause a `Player` to be knocked out of the tournament
-    or it may allow the `Player` to reproduce and return additional variants of itself.
-
-    This function has no effect when a tournament has only one round.
-    """
-    @callback after_round(player :: Player.t, faceoff :: FaceOff.t, tournament :: Tournament.t) :: [Player.t]
+#    @doc """
+#    This callback is called after a completed Tournament round for each of the players competing in the `Tournament`.
+#
+#    Depending on the rules engine implementation, this may cause a `Player` to be knocked out of the tournament
+#    or it may allow the `Player` to reproduce and return additional variants of itself.
+#
+#    This function has no effect when a tournament has only one round.
+#    """
+#    @callback after_round(player :: Player.t, faceoff :: FaceOff.t, tournament :: Tournament.t) :: [Player.t]
 
     @doc """
     Calculate the points to be awarded to the players after a `FaceOff`. The output of this function will be a tuple
@@ -38,9 +38,17 @@ defmodule Prisoners.Rules do
     @doc """
     This callback determines which players in the tournament must face-off with each other to constitute a round.
 
-    A functioning implementation is provided.
+    A default implementation is provided.
     """
     @callback play_round(tournament :: Tournament.t) :: Tournament.t
+
+
+    @doc """
+    This callback handles the interaction between two players.
+
+    A default implementation is provided.
+    """
+    @callback faceoff(player1 :: Player.t, player2 :: Player.t, tournament :: Tournament.t, caller::pid) :: FaceOff.t
 
     defmacro __using__(_opts) do
         quote do
@@ -51,55 +59,81 @@ defmodule Prisoners.Rules do
             @impl Rules
             def play_round(tournament) do
                 IO.puts("Playing round! #{__MODULE__}")
+                caller = self()
+                # 1:1 map Collect FaceOffs: [pairs] --> [FaceOffs]
                 # Note: __MODULE__ will not be the Prisoners.Rules module; it will be the module that _used_ it.
-                Rules.permutate_players(tournament.players_refs, [], tournament, __MODULE__)
+                faceoffs = tournament.player_ids
+                |> Rules.pairs()
+                # &(spawn(fn -> process(&1, caller) end))
+                # |> Enum.map(&(spawn(fn -> process(&1, caller) end)))
+                  # 1:1 map Collect FaceOff PIDs: [pairs] --> [pids]
+                |> Enum.map(fn [pid1, pid2] -> spawn(fn -> faceoff(pid1, pid2, tournament, caller) end) end)
+#                |> Enum.map(&(spawn(fn -> Rules.faceoff(&1, caller) end)))
+#                Enum.map(pairs, fn [pid1, pid2] ->
+#                    Rules.faceoff(pid1, pid2, tournament, __MODULE__)
+#                end)
+                  # Map the returned pids
+                |> Enum.map(fn pid ->
+                  # Receive the response from this pid
+                    receive do
+                        {^pid, faceoff} -> faceoff
+                    end
+                end)
+                |> Enum.reduce(tournament.faceoffs, fn x, acc ->
+                    [x | acc]
+                end)
+
+                Map.put(tournament, :faceoffs, faceoffs)
+                # 1:1 map? Collect roster for next round ????  [pid] -> [pid]
                 # tournament.rules_engine.after_round() # TODO
             end
 
+            @impl Rules
+            def faceoff(pid1, pid2, tournament, caller) do
+
+                player1 = Tournament.player(tournament, pid1)
+                player2 = Tournament.player(tournament, pid2)
+                # TODO: check response, kill process on bad response
+                player1_response = player1.module.respond(player2, tournament)
+                player2_response = player2.module.respond(player1, tournament)
+
+                faceoff = %FaceOff{
+                    player1_id: pid1,
+                    player2_id: pid2,
+                    player1_response: player1_response,
+                    player2_response: player2_response,
+                }
+
+                {p1_score, p2_score} = calculate_score(pid1, pid2, faceoff, tournament)
+
+                faceoff = %{faceoff | player1_points_received: p1_score, player2_points_received: p2_score}
+
+                # Send message back to caller with result
+                send(caller, {self(), faceoff})
+            end
+
             # A default implementation is provided, but a Rules Engine may implement their own
-            defoverridable play_round: 1
+            defoverridable play_round: 1, faceoff: 4
         end
     end
 
     @doc """
-    This function is provided as a convenience for implementing the `c:play_round/1` functionality: it will work
-    through all player combinations for each round and ensure that each player has one face-off with each of the others.
+    This function returns all possible pairs from a list. It is provided as a convenience for implementing the
+    `c:play_round/1` functionality where a rules engine regulates the facing off of players with each other.
 
-    For example, a round with players `ABCD` will generate the following face-offs: `AB`, `AC`, `AD`, `BC`, `BD`, `CD`.
+    ## Examples
+        iex> Rules.pairs(["a", "b", "c", "d"])
+        [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]]
 
-    This implementation will call the expected callbacks during
     """
-    @spec permutate_players(players_list :: list, acc :: list, tournament :: Tournament.t, rules_module :: module) :: list
-    def permutate_players([], _acc, tournament, _rules_module), do: tournament
+    @spec pairs(list) :: list
+    def pairs(list), do: combinations(2, list)
 
-    def permutate_players([_player1], _acc, tournament, _rules_module), do: tournament
-
-    def permutate_players([player1, player2 | rest], acc, tournament, rules_module) do
-
-        result = faceoff(player1, player2, tournament, rules_module)
-
-#        rules_module.after_round(player1, faceoff, tournament)
-#        case result do
-#
-#        end
-#        tournament = permutate_players([player1] ++ [rest], acc, tournament, rules_module)
-        tournament = permutate_players([player1 | rest], acc, tournament, rules_module)
-        permutate_players([player2 | rest], acc, tournament, rules_module)
+    # Adapted from http://rosettacode.org/wiki/Combinations#Elixir
+    defp combinations(0, _), do: [[]]
+    defp combinations(_, []), do: []
+    defp combinations(i, [player|rest]) do
+        (for list <- combinations(i-1, rest), do: [player|list]) ++ combinations(i, rest)
     end
 
-    @doc """
-    This is another convenience function that deals with the nitty-gritty of two players facing off and recording
-    their scores and calling
-    """
-    def faceoff(player1, player2, tournament, rules_module) do
-        IO.puts("FACE OFF!!!")
-        #    player1_name = Map.get(tournament.players_map, player1)
-
-        player1_module = Tournament.player(tournament, player1)
-        player2_module = Tournament.player(tournament, player2)
-        IO.puts("Player1: #{player1_module}  Player2: #{player2_module}")
-        player1_response = player1_module.respond(player2, tournament)
-        player2_response = player2_module.respond(player1, tournament)
-        IO.puts("#{player1_response} #{player2_response}")
-    end
 end
