@@ -7,13 +7,13 @@ defmodule Prisoners.Player do
   alias Prisoners.Tournament
 
   @type t :: %__MODULE__{
-               id: identifier,
-               module: module,
-               points: integer,
-               inbox: %{required(identifier) => [Prisoners.response]},
-               outbox: %{required(identifier) => [Prisoners.response]},
-               meta: map
-             }
+          id: identifier,
+          module: module,
+          points: integer,
+          inbox: %{required(identifier) => [Prisoners.response()]},
+          outbox: %{required(identifier) => [Prisoners.response()]},
+          meta: map
+        }
 
   defstruct id: nil,
             module: nil,
@@ -26,19 +26,7 @@ defmodule Prisoners.Player do
   In order for a player to play, it must respond with either `:cooperate` or `:defect` when it faces off with another
   player.
   """
-  @callback respond(opponent :: Player.t, tournament :: Tournament.t) :: Prisoners.response
-
-  # You can't do this if you want to run the faceoffs concurrently / in parallel!
-#  @doc """
-#  This callback _may_ be called after a faceoff between two players. It is up to the Rules Engine to determine whether
-#  or not the player will get the opportunity to modify itself.
-#
-#  The implementation of this callback can have the effect of a player introducing copies of itself (i.e. reproducing),
-#  a player modifying its configuration, or even a player taking itself out of the tournament.
-#
-#  A default implementation is provided.
-#  """
-#  @callback after_faceoff(player :: Player.t, tournament :: Tournament.t) :: [Player.t]
+  @callback respond(opponent :: Player.t(), tournament :: Tournament.t()) :: Prisoners.response()
 
   @doc """
   This callback is called after a completed Tournament round for each of the players competing in the `Tournament`.
@@ -50,25 +38,33 @@ defmodule Prisoners.Player do
 
   A default implementation is provided.
   """
-  @callback after_round(player :: Player.t, tournament :: Tournament.t) :: [Player.t]
+  @callback after_round(player :: Player.t(), tournament :: Tournament.t()) :: [Player.t()]
 
   defmacro __using__(_opts) do
     quote do
       @behaviour Player
 
-#      @impl Player
-#      def after_faceoff(player, _tournament), do: [player]
+      #      @impl Player
+      #      def after_faceoff(player, _tournament), do: [player]
 
       @impl Player
       def after_round(player, _tournament), do: [player]
 
       # A default implementation is provided, but a Strategy may implement their own
-#      defoverridable after_faceoff: 2, after_round: 2
+      #      defoverridable after_faceoff: 2, after_round: 2
       defoverridable after_round: 2
     end
   end
 
-  def new(player_module, opts) do
+  @doc """
+  Create a new `%Player{}` struct.
+
+  Options:
+
+  - `n` (integer) the number of instances to create. Default: `1`
+  """
+  @spec new(player_module :: module, opts :: keyword) :: Player.t()
+  def new(player_module, opts \\ []) do
     %Player{
       id: make_ref(),
       module: player_module,

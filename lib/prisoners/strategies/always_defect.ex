@@ -9,5 +9,4 @@ defmodule Prisoners.Strategies.AlwaysDefect do
 
   @impl Player
   def respond(_opponent_ref, _tournament), do: :defect
-
 end

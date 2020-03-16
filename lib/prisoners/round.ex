@@ -6,11 +6,11 @@ defmodule Prisoners.Round do
   alias Prisoners.FaceOff
 
   @type t :: %__MODULE__{
-               players_count_at_start: integer,
-               players_count_at_finish: integer,
-               response_count_by_type: %{required(atom) => integer},
-               faceoffs: [FaceOff.t]
-             }
+          players_count_at_start: integer,
+          players_count_at_finish: integer,
+          response_count_by_type: %{required(atom) => integer},
+          faceoffs: [FaceOff.t()]
+        }
 
   defstruct players_count_at_start: 0,
             players_count_at_finish: 0,

@@ -1,4 +1,5 @@
 alias Prisoners.Strategies.{AlwaysCooperate, AlwaysDefect}
 alias Prisoners.RuleEngines.Simple
 
-Prisoners.compete([{AlwaysCooperate, []}, {AlwaysDefect, []},], Simple, rounds: 3)
+results = Prisoners.compete([{AlwaysCooperate, []}, {AlwaysDefect, []},], Simple, rounds: 3, n: 2)
+IO.inspect(results)

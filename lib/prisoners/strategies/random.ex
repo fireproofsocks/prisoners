@@ -9,8 +9,8 @@ defmodule Prisoners.Strategies.Random do
 
   @impl Player
   def respond(_opponent_ref, _tournament),
-      do: [:defect, :cooperate]
-          |> Enum.shuffle()
-          |> hd()
-
+    do:
+      [:defect, :cooperate]
+      |> Enum.shuffle()
+      |> hd()
 end

@@ -9,5 +9,4 @@ defmodule Prisoners.Strategies.AlwaysCooperate do
 
   @impl Player
   def respond(_opponent_ref, _tournament), do: :cooperate
-
 end
