@@ -12,9 +12,10 @@ defmodule Prisoners.Tournament do
           hostname: String.t(),
           app_version: String.t(),
           players_count: integer,
+          rounds_count: integer,
+          concurrent_count: integer,
           players_map: %{required(identifier) => Player.t()},
           player_ids: [identifier],
-          faceoffs: [FaceOff.t()],
           rounds: [Round.t()],
           rules_module: module,
           response_count_by_type: %{required(atom) => integer},
@@ -27,9 +28,10 @@ defmodule Prisoners.Tournament do
             hostname: nil,
             app_version: nil,
             players_count: 0,
+            rounds_count: 0,
+            concurrent_count: 0,
             players_map: %{},
             player_ids: [],
-            faceoffs: [],
             rounds: [],
             rules_module: nil,
             response_count_by_type: %{},
@@ -44,14 +46,13 @@ defmodule Prisoners.Tournament do
     player_ids = Map.keys(players_map)
 
     %Tournament{
-      id: make_ref(),
-      started_at: DateTime.utc_now(),
+      #      id: nil, # PID added once it's spawned
+      #      started_at: nil, # added once it's spawned DateTime.utc_now(),
       hostname: hostname(),
       app_version: app_version(),
       players_count: length(player_ids),
       players_map: players_map,
       player_ids: player_ids,
-      faceoffs: [],
       rules_module: rules_module,
       meta: opts
     }
@@ -65,7 +66,7 @@ defmodule Prisoners.Tournament do
     end
   end
 
-  # Converts a list of player modules + options to a map
+  # Converts a list of player modules + options to a map keyed by the player's pid
   @spec reference_players([Player.t()]) :: %{required(identifier) => Player.t()}
   defp reference_players(players) do
     Enum.reduce(players, %{}, fn {module, opts}, acc ->

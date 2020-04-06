@@ -1,15 +1,16 @@
 # Prisoners (aka Prisoner's Dilemma )
 
-A programmatic exploration to test various strategies for the prisoner's dilemma in a tournament like the one conceived by [Robert Axelrod](https://cs.stanford.edu/people/eroberts/courses/soco/projects/1998-99/game-theory/axelrod.html).
+This is a programmatic exploration to test various strategies for the [Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma#Strategy_for_the_prisoner's_dilemma) in a tournament like the one conceived by [Robert Axelrod](https://cs.stanford.edu/people/eroberts/courses/soco/projects/1998-99/game-theory/axelrod.html) in 1980.
 
 The idea for this package came after hearing the Radiolab podcast episode [Tit for Tat](https://www.wnycstudios.org/podcasts/radiolab/segments/104010-one-good-deed-deserves-another).
 
-## Installation
+## Installation and Usage Overview
 
-Install Elixir.
-Create an app.
+1. [Install Elixir](https://elixir-lang.org/install.html).
 
-Add `prisoners` to your list of dependencies in `mix.exs`:
+2. [Create an Elixir application using Mix](https://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html#our-first-project).
+
+3. Add `prisoners` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -18,28 +19,20 @@ def deps do
   ]
 end
 ```
+4. Update your dependencies: `mix deps.get`
 
-Create a tournament.
-Run it.
+5. Create a tournament.
+
+6. Run it. You can run scripts in the context of your mix project with `mix run`, e.g. `mix run strategies/example.exs`. See `mix help run` for more information.
 
 ## Competing
 
-When two competing strategies encounter one another during a tournament competition they can choose 1 of 2 possible responses (following the verbiage from the original discussion of the [Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma#Strategy_for_the_prisoner's_dilemma) game):
+When two competing strategies encounter one another during a tournament competition they can choose any possible response 
+that is allowed by the rule engine.  
 
-- `:defect` : save your own skin at the other's expense
-- `:cooperate` : work together
+It is up to the rules engine to determine exactly how the round is played; for example, an engine may or may not force 
+encounters between all participating players. See the `Rules.play_round/1` callback.
 
-### Scoring 
-
-The main push of the Prisoner's Dilemma is that defection always results in a better payoff than cooperation regardless of the other player's choice. How this is implemented with points is subject to interpretation.
-
-|              | B cooperates   | B defects      |
-| -----------: | ---------------| ---------------|
-| A cooperates | A: + 1; B: + 1 | A: - 1; B: + 2 |
-| A defects    | A: + 2; B: - 1 |   No points    |
-
-
-You can run scripts in the context of your mix project with `mix run -r foo.exs`. See `mix help run` for more information.
 
 ## Links
 

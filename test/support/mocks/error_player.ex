@@ -1,4 +1,4 @@
-defmodule Prisoners.ErrorPlayer do
+defmodule Prisoners.Mocks.ErrorPlayer do
   @moduledoc """
   This player module misbehaves and returns invalid responses.
   """

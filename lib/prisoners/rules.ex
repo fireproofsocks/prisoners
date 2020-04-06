@@ -1,6 +1,6 @@
 defmodule Prisoners.Rules do
   @moduledoc """
-  Defines the callback "hooks" that a rule engine must define in order to properly govern a `Tournament`.
+  Defines the callback "hooks" that a rule engine must implement in order to properly govern a `Tournament`.
 
   These callback functions are intended to be open-ended: it is up to a specific implementation to determine how
   simple or complex the rules are.
@@ -48,6 +48,13 @@ defmodule Prisoners.Rules do
   @callback play_round(tournament :: Tournament.t()) :: Tournament.t()
 
   @doc """
+  Return a list of valid responses.
+
+  A default implementation is provided.
+  """
+  @callback valid_responses() :: [atom]
+
+  @doc """
   This callback handles the interaction between two players.
 
   A default implementation is provided.
@@ -74,24 +81,23 @@ defmodule Prisoners.Rules do
           faceoffs: faceoffs
         }
 
+        # TODO:
+        # weed out dead processes from player_ids
+        round = %Round{
+          round
+          | players_count_at_finish: length(tournament.player_ids),
+            response_count_by_type: Rules.summarize_faceoff_responses_by_type(round.faceoffs)
+        }
+
+        # call Player.after_round for each surviving player
+
+        # Prepend this round to the tournament log...
         %Tournament{tournament | rounds: [round | tournament.rounds]}
-        #                faceoffs = tournament.player_ids
-        #                |> Rules.pairs()
-        #                |> Enum.map(fn [pid1, pid2] -> spawn(fn -> faceoff(pid1, pid2, tournament, caller) end) end)
-        #                |> Enum.map(fn pid ->
-        #                    receive do
-        #                        {^pid, faceoff} -> faceoff
-        #                    end
-        #                end)
-        #                |> Enum.reduce(tournament.faceoffs, fn x, acc ->
-        #                    [x | acc]
-        #                end)
-        #
-        #                Map.put(tournament, :faceoffs, faceoffs)
-        # 1:1 map? Collect roster for next round ????  [pid] -> [pid]
-        # tournament.rules_engine.after_round() # TODO
       end
 
+      # All faceoffs in a round happen concurrently, in parallel;
+      # they only have a copy of the %Tournament{} data from the _start_ of the
+      # round, so the players do not have "live updates" from the other faceoffs.
       defp do_faceoffs(tournament) do
         caller = self()
 
@@ -115,6 +121,10 @@ defmodule Prisoners.Rules do
         player1_response = player1.module.respond(player2, tournament)
         player2_response = player2.module.respond(player1, tournament)
 
+        # Remember the encounter
+        :ok = player1.module.remember_encounter(pid1, pid2, player1_response, player2_response)
+        :ok = player2.module.remember_encounter(pid2, pid1, player2_response, player1_response)
+
         faceoff = %FaceOff{
           player1_id: pid1,
           player2_id: pid2,
@@ -124,27 +134,53 @@ defmodule Prisoners.Rules do
 
         {p1_score, p2_score} = calculate_score(pid1, pid2, faceoff, tournament)
 
-        faceoff = %{
-          faceoff
-          | player1_points_received: p1_score,
-            player2_points_received: p2_score
-        }
+        # Remember the scores
+        :ok = player1.module.increment_score(pid1, p1_score)
+        :ok = player2.module.increment_score(pid2, p2_score)
+
+        #        faceoff = %FaceOff{
+        #          faceoff
+        #          | player1_points_received: p1_score,
+        #            player2_points_received: p2_score
+        #        }
 
         # Send message back to caller with result
-        send(caller, {self(), faceoff})
+        send(
+          caller,
+          {self(),
+           %FaceOff{
+             faceoff
+             | player1_points_received: p1_score,
+               player2_points_received: p2_score
+           }}
+        )
       end
 
-      #
-      #      defp get_response(pid1, pid2, tournament, true, true) do
-      #        Tournament.player(tournament, pid1).module.respond(pid2)
-      #        player1_response = player1.module.respond(player2, tournament)
-      #      end
-      #
-      #      # `pid` must refer to a process running on the local node or ArgumentError is raised.
-      #      defp get_response(pid, tournament, false), do: :dead
+      @impl Rules
+      def valid_responses(), do: [:defect, :cooperate]
 
       # A default implementation is provided, but a Rules Engine may implement their own
-      defoverridable play_round: 1, faceoff: 4
+      defoverridable play_round: 1, faceoff: 4, valid_responses: 0
     end
+  end
+
+  @doc """
+  A reporting function which will summarize a list of faceoffs to tally the number of responses by response type.
+  """
+  @spec summarize_faceoff_responses_by_type(faceoffs :: [Faceoff.t()]) :: map
+  def summarize_faceoff_responses_by_type(faceoffs) do
+    Enum.reduce(
+      faceoffs,
+      %{},
+      fn x, acc ->
+        p1_response = Map.get(x, :player1_response)
+        response1_cnt = Map.get(acc, p1_response, 0)
+        acc = Map.put(acc, p1_response, response1_cnt + 1)
+
+        p2_response = Map.get(x, :player2_response)
+        response2_cnt = Map.get(acc, p2_response, 0)
+        Map.put(acc, p2_response, response2_cnt + 1)
+      end
+    )
   end
 end

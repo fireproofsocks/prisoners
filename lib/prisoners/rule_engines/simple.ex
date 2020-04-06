@@ -1,6 +1,14 @@
 defmodule Prisoners.RuleEngines.Simple do
   @moduledoc """
-  Basic implementation of the original tournament idea.
+  This is a basic implementation of the original tournament idea: the important part is that defection is incentivized,
+  regardless of the other players's response.
+
+  1 of 2 possible responses (following the verbiage from the original discussion of the
+  [Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma#Strategy_for_the_prisoner's_dilemma) game):
+
+  - `:defect` : save your own skin at the other's expense
+  - `:cooperate` : work together
+
 
   Simple scoring as follows:
 
@@ -23,7 +31,7 @@ defmodule Prisoners.RuleEngines.Simple do
   #  def after_round(player, _faceoff, _tournament), do: [player]
 
   @impl Rules
-  def calculate_score(_player1, _player2, faceoff, _tournament) do
+  def calculate_score(_pid1, _pid2, faceoff, _tournament) do
     lookup_score(faceoff.player1_response, faceoff.player2_response)
   end
 

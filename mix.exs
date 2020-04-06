@@ -23,7 +23,7 @@ defmodule Prisoners.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :table_rex]
     ]
   end
 
@@ -34,6 +34,7 @@ defmodule Prisoners.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:table_rex, "~> 2.0"},
       {:credo, "~> 1.3.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.2", only: [:dev, :test], runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
