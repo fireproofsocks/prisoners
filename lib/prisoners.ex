@@ -26,34 +26,32 @@ defmodule Prisoners do
     - `:n` (integer) : the number of concurrent tournaments to run. Default `1`
 
   """
+  # TODO: option x, y?  `:c` (integer) : the number of concurrent tournaments to run. Default `1`
+  # The idea here being that you could run x tournaments sequentially one after the other.
+  # You could also run y tournaments concurrently at one time.
   @spec compete(players :: [{module, keyword}], rules_module :: module, opts :: keyword) :: [
           Tournament.t()
         ]
   def compete(players, rules_module, opts \\ [])
 
   def compete(players, rules_module, opts) when is_list(players) and is_atom(rules_module) do
-    {rounds, opts} = ensure_pos_integer(Keyword.pop(opts, :rounds, 1), :rounds)
-    {n, opts} = ensure_pos_integer(Keyword.pop(opts, :n, 1), :n)
-    Logger.info("Starting #{n} concurrent tournaments, each with #{rounds} rounds")
-    caller = self()
-    tournament = Tournament.new(players, rules_module, opts)
+    rounds = ensure_pos_integer(Keyword.get(opts, :rounds, 1), :rounds)
+    n = ensure_pos_integer(Keyword.get(opts, :n, 1), :n)
+
+    Logger.info("Starting tournament(s) with options #{inspect(opts)}")
 
     1..n
     |> Enum.map(fn _ ->
       spawn(fn ->
-        tournament
-        |> Map.put(:id, self())
-        |> Map.put(:rounds_count, rounds)
-        |> Map.put(:concurrent_count, n)
-        |> Map.put(:started_at, DateTime.utc_now())
-        |> do_tournament(rules_module, rounds, caller)
+        players
+        |> Tournament.new(rules_module, opts)
+        |> do_tournament(rules_module, rounds, self())
       end)
     end)
     |> Enum.map(fn pid ->
       receive do
         {^pid, tournament} ->
-          tournament
-          |> Map.put(:finished_at, DateTime.utc_now())
+          Tournament.finish(tournament)
       end
     end)
   end
@@ -70,8 +68,8 @@ defmodule Prisoners do
     send(caller, {self(), tournament})
   end
 
-  @spec ensure_pos_integer(tuple, atom) :: tuple
-  defp ensure_pos_integer({n, opts}, _) when is_integer(n) and n > 0, do: {n, opts}
+  @spec ensure_pos_integer(integer, atom) :: tuple
+  defp ensure_pos_integer(n, _) when is_integer(n) and n > 0, do: n
 
   @spec ensure_pos_integer(tuple, atom) :: tuple
   defp ensure_pos_integer(_, name) do

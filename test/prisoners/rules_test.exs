@@ -21,4 +21,11 @@ defmodule Prisoners.RulesTest do
                ])
     end
   end
+
+  describe "all_pairs/1" do
+    test "all combinations found" do
+      assert [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]] ==
+               Rules.all_pairs(["a", "b", "c", "d"])
+    end
+  end
 end

@@ -3,7 +3,7 @@ defmodule Prisoners.Tournament do
   Contains data about a specific tournament.
   """
 
-  alias Prisoners.{FaceOff, Player, Round, Tournament}
+  alias Prisoners.{Player, Round, Tournament}
 
   @type t :: %__MODULE__{
           id: identifier,
@@ -12,13 +12,15 @@ defmodule Prisoners.Tournament do
           hostname: String.t(),
           app_version: String.t(),
           players_count: integer,
-          rounds_count: integer,
-          concurrent_count: integer,
-          players_map: %{required(identifier) => Player.t()},
+          players_map: %{
+            required(identifier) => Player.t()
+          },
           player_ids: [identifier],
           rounds: [Round.t()],
           rules_module: module,
-          response_count_by_type: %{required(atom) => integer},
+          response_count_by_type: %{
+            required(atom) => integer
+          },
           meta: map
         }
 
@@ -28,8 +30,6 @@ defmodule Prisoners.Tournament do
             hostname: nil,
             app_version: nil,
             players_count: 0,
-            rounds_count: 0,
-            concurrent_count: 0,
             players_map: %{},
             player_ids: [],
             rounds: [],
@@ -37,6 +37,9 @@ defmodule Prisoners.Tournament do
             response_count_by_type: %{},
             meta: %{}
 
+  @doc """
+  Create a new tournament with the given list of players, governed by the given rules module.
+  """
   @spec new(players :: [{module, keyword}], rules_module :: module, opts :: keyword) ::
           Tournament.t()
   def new(players, rules_module, opts \\ []) do
@@ -46,8 +49,8 @@ defmodule Prisoners.Tournament do
     player_ids = Map.keys(players_map)
 
     %Tournament{
-      #      id: nil, # PID added once it's spawned
-      #      started_at: nil, # added once it's spawned DateTime.utc_now(),
+      id: self(),
+      started_at: DateTime.utc_now(),
       hostname: hostname(),
       app_version: app_version(),
       players_count: length(player_ids),
@@ -56,6 +59,14 @@ defmodule Prisoners.Tournament do
       rules_module: rules_module,
       meta: opts
     }
+  end
+
+  @doc """
+  Marks a tournament complete, adding summary data.
+  """
+  def finish(%Tournament{} = tournament) do
+    tournament
+    |> Map.put(:finished_at, DateTime.utc_now())
   end
 
   # Make sure we got passed a valid module.
@@ -69,15 +80,24 @@ defmodule Prisoners.Tournament do
   # Converts a list of player modules + options to a map keyed by the player's pid
   @spec reference_players([Player.t()]) :: %{required(identifier) => Player.t()}
   defp reference_players(players) do
-    Enum.reduce(players, %{}, fn {module, opts}, acc ->
-      ensure_loaded(module)
-      {n, opts} = get_n(Keyword.pop(opts, :n, 1))
+    Enum.reduce(
+      players,
+      %{},
+      fn {module, opts}, acc ->
+        ensure_loaded(module)
+        {n, opts} = get_n(Keyword.pop(opts, :n, 1))
 
-      Enum.reduce(1..n, acc, fn _, acc ->
-        player = Player.new(module, opts)
-        Map.put(acc, player.id, player)
-      end)
-    end)
+        Enum.reduce(
+          1..n,
+          acc,
+          fn n, acc ->
+            opts = Keyword.put(opts, :n, n)
+            player = Player.new(module, opts)
+            Map.put(acc, player.id, player)
+          end
+        )
+      end
+    )
   end
 
   @spec get_n(tuple) :: tuple
@@ -103,32 +123,93 @@ defmodule Prisoners.Tournament do
   end
 
   @doc """
-  This function returns all possible pairs from a list (the order of the items is not significant).
-  It is provided as a convenience for implementing the
-  `c:Prisoners.Rules.play_round/1` functionality where a rules engine regulates the facing off of players with each other.
+  Remembering the encounter updates the inboxes and outboxes of both players involved in the encounter. Remembering is how
+  each player knows what they did to another player and what other players did to them.
 
-  ## Examples
-      iex> Tournament.pairs(["a", "b", "c", "d"])
-      [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]]
+  It is up to the active Rules Engine to determine whether a response is valid or not.
 
+  The given responses are prepended to the outbox and inbox lists so the most recent responses are the first items in each list.
+
+  `resp1` is the response given by player 1 (`pid1`).
+  `resp2` is the response given by player 2 (`pid2`).
+
+  After remembering:
+
+  Player 1's outbox will have a key for Player 2's PID, and it will contain a list with `response1` as the first item
+  (i.e. the response sent from Player 1 to Player 2)
+
+  Player 1's inbox will have a key for Player 2's PID, and it will contain a list with `response2` as the first item.
+  (i.e. the response that was received by Player 1 from Player 2)
+
+  And vice versa for Player 2.
   """
-  @spec pairs(list) :: list
-  def pairs(list), do: combinations(2, list)
-
-  # Adapted from http://rosettacode.org/wiki/Combinations#Elixir
-  defp combinations(0, _), do: [[]]
-  defp combinations(_, []), do: []
-
-  defp combinations(i, [player | rest]) do
-    for(list <- combinations(i - 1, rest), do: [player | list]) ++ combinations(i, rest)
+  def remember_encounter(%Tournament{} = tournament, pid1, pid2, resp1, resp2) do
+    tournament
+    |> update_in(
+      [Access.key(:players_map), Access.key(pid1), Access.key(:outbox), Access.key(pid2, [])],
+      &[resp1 | &1]
+    )
+    |> update_in(
+      [Access.key(:players_map), Access.key(pid1), Access.key(:inbox), Access.key(pid2, [])],
+      &[resp2 | &1]
+    )
+    |> update_in(
+      [Access.key(:players_map), Access.key(pid2), Access.key(:outbox), Access.key(pid1, [])],
+      &[resp2 | &1]
+    )
+    |> update_in(
+      [Access.key(:players_map), Access.key(pid2), Access.key(:inbox), Access.key(pid1, [])],
+      &[resp1 | &1]
+    )
   end
 
   @doc """
-  Retrieves the `%Player{}` struct for the given player identifier.
+  Retrieves the given `attribute` from the given player (identified by its PID).
   """
-  @spec player(tournament :: Tournament.t(), player_ref :: identifier) :: Player.t()
-  # TODO when is_pid(pid) do
-  def player(tournament, pid) do
-    get_in(tournament, [Access.key(:players_map), Access.key(pid)])
+  def player(%Tournament{} = tournament, player_pid, attribute) do
+    get_in(tournament, [Access.key(:players_map), Access.key(player_pid), Access.key(attribute)])
+  end
+
+  @doc """
+  Retrieves a player (identified by its PID).
+  """
+  def player(%Tournament{} = tournament, player_pid) do
+    get_in(tournament, [Access.key(:players_map), Access.key(player_pid)])
+  end
+
+  @doc """
+  Increments a player's score by the specified `points` (this may be positive or negative).
+  The current rules engine determines whether or not the player's status is one which allows it to be updated.
+  For example, disqualified players will not have their scores updated.
+
+  Returns the updated tournament struct.
+  """
+  @spec increment_score(Tournament.t(), pid, number) :: %Tournament{}
+  def increment_score(%Tournament{} = tournament, player_pid, points) when is_number(points) do
+    update_in(
+      tournament,
+      [Access.key(:players_map), Access.key(player_pid), Access.key(:score)],
+      &(&1 + points)
+    )
+  end
+
+  @doc """
+  Updates a player (identified by its PID) to the specified `status`.
+  """
+  def update_status(%Tournament{} = tournament, player_pid, status) when is_atom(status) do
+    put_in(
+      tournament,
+      [Access.key(:players_map), Access.key(player_pid), Access.key(:status)],
+      status
+    )
+  end
+
+  @doc """
+  Puts the `round` into the current tournament, returns the updated tournament struct.
+  This prepends the given `round` into the list of rounds so that the most recent round is the first item in the list.
+  """
+  @spec put_round(Tournament.t(), Round.t()) :: %Tournament{}
+  def put_round(%Tournament{} = tournament, %Round{} = round) do
+    %Tournament{tournament | rounds: [round | tournament.rounds]}
   end
 end

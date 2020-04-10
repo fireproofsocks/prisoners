@@ -2,8 +2,8 @@ defmodule Prisoners.TournamentTest do
   use ExUnit.Case
 
   alias Prisoners.RuleEngines.Simple
-  alias Prisoners.Strategies.AlwaysCooperate
-  alias Prisoners.{Player, Tournament}
+  alias Prisoners.Strategies.{AlwaysCooperate, AlwaysDefect}
+  alias Prisoners.{Player, Round, Tournament}
 
   describe "new/2" do
     test "instantiate a tournament" do
@@ -41,10 +41,11 @@ defmodule Prisoners.TournamentTest do
     end
   end
 
-  describe "pairs/1" do
-    test "all combinations found" do
-      assert [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]] ==
-               Tournament.pairs(["a", "b", "c", "d"])
+  describe "finish/1" do
+    test "adds finished_at" do
+      t = Tournament.new([], Simple, foo: :bar)
+      %Tournament{finished_at: finished_at} = Tournament.finish(t)
+      assert finished_at != nil
     end
   end
 
@@ -52,14 +53,84 @@ defmodule Prisoners.TournamentTest do
     test "gets the player by its pid" do
       tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
       pid = hd(tournament.player_ids)
-      result = Tournament.player(tournament, pid)
-      assert %Player{} = result
-      assert result.module == AlwaysCooperate
+      assert %Player{module: AlwaysCooperate} = Tournament.player(tournament, pid)
     end
 
     test "nil on bogus pid" do
       tournament = Tournament.new([], Simple)
       assert nil == Tournament.player(tournament, "bunk")
+    end
+  end
+
+  describe "player/3" do
+    test "gets the player attribute requested" do
+      tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
+      pid = hd(tournament.player_ids)
+      assert AlwaysCooperate = Tournament.player(tournament, pid, :module)
+    end
+  end
+
+  describe "increment_score/3" do
+    test "updates properly" do
+      tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
+      pid = hd(tournament.player_ids)
+
+      assert %Tournament{players_map: %{^pid => %{score: 6}}} =
+               tournament = Tournament.increment_score(tournament, pid, 6)
+
+      assert %Tournament{players_map: %{^pid => %{score: 12}}} =
+               Tournament.increment_score(tournament, pid, 6)
+    end
+  end
+
+  describe "update_status/3" do
+    test "updates properly" do
+      tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
+      pid = hd(tournament.player_ids)
+
+      assert %Tournament{players_map: %{^pid => %{status: :winner}}} =
+               Tournament.update_status(tournament, pid, :winner)
+    end
+  end
+
+  describe "put_round/2" do
+    test "updates properly" do
+      tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
+
+      assert %Tournament{rounds: [%Round{players_count_at_start: 7}]} =
+               Tournament.put_round(tournament, %Round{players_count_at_start: 7})
+    end
+  end
+
+  describe "remember_encounter/5" do
+    test "updates properly, puts most recent response at the front of the list" do
+      tournament = Tournament.new([{AlwaysCooperate, []}, {AlwaysDefect, []}], Simple)
+      [pid1, pid2] = tournament.player_ids
+
+      tournament = Tournament.remember_encounter(tournament, pid1, pid2, :cooperate, :defect)
+
+      assert %Tournament{
+               players_map: %{
+                 ^pid1 => %Player{inbox: %{^pid2 => [:defect]}, outbox: %{^pid2 => [:cooperate]}},
+                 ^pid2 => %Prisoners.Player{
+                   inbox: %{^pid1 => [:cooperate]},
+                   outbox: %{^pid1 => [:defect]}
+                 }
+               }
+             } = tournament
+
+      assert %Tournament{
+               players_map: %{
+                 ^pid1 => %Player{
+                   inbox: %{^pid2 => [:defect1, :defect]},
+                   outbox: %{^pid2 => [:cooperate1, :cooperate]}
+                 },
+                 ^pid2 => %Prisoners.Player{
+                   inbox: %{^pid1 => [:cooperate1, :cooperate]},
+                   outbox: %{^pid1 => [:defect1, :defect]}
+                 }
+               }
+             } = Tournament.remember_encounter(tournament, pid1, pid2, :cooperate1, :defect1)
     end
   end
 end

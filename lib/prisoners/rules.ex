@@ -48,7 +48,7 @@ defmodule Prisoners.Rules do
   @callback play_round(tournament :: Tournament.t()) :: Tournament.t()
 
   @doc """
-  Return a list of valid responses.
+  Return a list of valid responses that a player may give during a faceoff encounter.
 
   A default implementation is provided.
   """
@@ -102,7 +102,7 @@ defmodule Prisoners.Rules do
         caller = self()
 
         tournament.player_ids
-        |> Tournament.pairs()
+        |> Rules.all_pairs()
         |> Enum.map(fn [pid1, pid2] ->
           spawn(fn -> faceoff(pid1, pid2, tournament, caller) end)
         end)
@@ -122,8 +122,8 @@ defmodule Prisoners.Rules do
         player2_response = player2.module.respond(player1, tournament)
 
         # Remember the encounter
-        :ok = player1.module.remember_encounter(pid1, pid2, player1_response, player2_response)
-        :ok = player2.module.remember_encounter(pid2, pid1, player2_response, player1_response)
+        #        :ok = player1.module.remember_encounter(pid1, pid2, player1_response, player2_response)
+        #        :ok = player2.module.remember_encounter(pid2, pid1, player2_response, player1_response)
 
         faceoff = %FaceOff{
           player1_id: pid1,
@@ -157,7 +157,7 @@ defmodule Prisoners.Rules do
       end
 
       @impl Rules
-      def valid_responses(), do: [:defect, :cooperate]
+      def valid_responses, do: [:defect, :cooperate]
 
       # A default implementation is provided, but a Rules Engine may implement their own
       defoverridable play_round: 1, faceoff: 4, valid_responses: 0
@@ -182,5 +182,27 @@ defmodule Prisoners.Rules do
         Map.put(acc, p2_response, response2_cnt + 1)
       end
     )
+  end
+
+  @doc """
+  This function returns all possible pairs (2 members) from the given list (the order of the items in each pairing is
+  not significant). It is provided as a convenience for implementing the`c:Prisoners.Rules.play_round/1` functionality
+  where a rules engine regulates the facing off of players with each other: many rules engines will want to have each
+  player encounter every other player.
+
+  ## Examples
+      iex> Prisoners.Rules.pairs(["a", "b", "c", "d"])
+      [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]]
+
+  """
+  @spec all_pairs(list) :: list
+  def all_pairs(list), do: combinations(2, list)
+
+  # Adapted from http://rosettacode.org/wiki/Combinations#Elixir
+  defp combinations(0, _), do: [[]]
+  defp combinations(_, []), do: []
+
+  defp combinations(i, [player | rest]) do
+    for(list <- combinations(i - 1, rest), do: [player | list]) ++ combinations(i, rest)
   end
 end
