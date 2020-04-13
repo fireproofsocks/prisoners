@@ -7,11 +7,13 @@ defmodule Prisoners.Tournament do
 
   @type t :: %__MODULE__{
           id: identifier,
+          name: String.t(),
           started_at: DateTime.t(),
           finished_at: DateTime.t(),
           hostname: String.t(),
           app_version: String.t(),
           players_count: integer,
+          rounds_count: integer,
           players_map: %{
             required(identifier) => Player.t()
           },
@@ -25,11 +27,13 @@ defmodule Prisoners.Tournament do
         }
 
   defstruct id: nil,
+            name: "",
             started_at: nil,
             finished_at: nil,
             hostname: nil,
             app_version: nil,
             players_count: 0,
+            rounds_count: 0,
             players_map: %{},
             player_ids: [],
             rounds: [],
@@ -39,6 +43,10 @@ defmodule Prisoners.Tournament do
 
   @doc """
   Create a new tournament with the given list of players, governed by the given rules module.
+
+  Options
+  - `i` : integer used when playing multiple tournaments
+  - `n` : integer to indicate how many rounds should be played. Default: `1`
   """
   @spec new(players :: [{module, keyword}], rules_module :: module, opts :: keyword) ::
           Tournament.t()
@@ -47,9 +55,12 @@ defmodule Prisoners.Tournament do
 
     players_map = reference_players(players)
     player_ids = Map.keys(players_map)
+    i = Keyword.get(opts, :i, 1)
+    n = Keyword.get(opts, :n, 1)
 
     %Tournament{
       id: self(),
+      name: get_tournament_nickname(i, n),
       started_at: DateTime.utc_now(),
       hostname: hostname(),
       app_version: app_version(),
@@ -61,11 +72,16 @@ defmodule Prisoners.Tournament do
     }
   end
 
+  defp get_tournament_nickname(i, n) do
+    "#{i} of #{n}"
+  end
+
   @doc """
   Marks a tournament complete, adding summary data.
   """
   def finish(%Tournament{} = tournament) do
     tournament
+    |> Map.put(:rounds_count, length(tournament.rounds))
     |> Map.put(:finished_at, DateTime.utc_now())
   end
 
@@ -90,8 +106,8 @@ defmodule Prisoners.Tournament do
         Enum.reduce(
           1..n,
           acc,
-          fn n, acc ->
-            opts = Keyword.put(opts, :n, n)
+          fn i, acc ->
+            opts = Keyword.put(opts, :i, i)
             player = Player.new(module, opts)
             Map.put(acc, player.id, player)
           end

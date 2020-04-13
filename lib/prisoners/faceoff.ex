@@ -23,4 +23,16 @@ defmodule Prisoners.FaceOff do
             # player2_result: nil,
             player1_points_received: nil,
             player2_points_received: nil
+
+  @doc """
+  Creates a new `%Faceoff{}` struct.
+  """
+  def new do
+  end
+
+  @doc """
+  Finalizes the faceoff.
+  """
+  def finish do
+  end
 end

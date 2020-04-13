@@ -4,7 +4,7 @@ defmodule Prisoners do
   """
 
   alias Prisoners.{Player, Tournament}
-
+  use Prisoners.Utils
   require Logger
 
   @typedoc """
@@ -19,16 +19,13 @@ defmodule Prisoners do
           {:knockout, any} | {:unchanged | [Player.t()]} | {:reproduced, [Player.t()]}
 
   @doc """
-  Entry point for a tournament: play a tournament with the given players using the given rules engine.
+  Play `n` number of tournaments using the given rules engine.
 
   Options:
     - `:rounds` (integer) : the number of rounds (i.e. iterations) in the tournament. Default: `1`
-    - `:n` (integer) : the number of concurrent tournaments to run. Default `1`
+    - `:n` (integer) : the number of concurrent tournaments to  run. Default `1`
 
   """
-  # TODO: option x, y?  `:c` (integer) : the number of concurrent tournaments to run. Default `1`
-  # The idea here being that you could run x tournaments sequentially one after the other.
-  # You could also run y tournaments concurrently at one time.
   @spec compete(players :: [{module, keyword}], rules_module :: module, opts :: keyword) :: [
           Tournament.t()
         ]
@@ -37,15 +34,23 @@ defmodule Prisoners do
   def compete(players, rules_module, opts) when is_list(players) and is_atom(rules_module) do
     rounds = ensure_pos_integer(Keyword.get(opts, :rounds, 1), :rounds)
     n = ensure_pos_integer(Keyword.get(opts, :n, 1), :n)
+    opts = Keyword.drop(opts, [:n])
+    opts = Keyword.put(opts, :n, n)
+
+    caller = self()
 
     Logger.info("Starting tournament(s) with options #{inspect(opts)}")
 
     1..n
-    |> Enum.map(fn _ ->
+    |> Enum.map(fn i ->
       spawn(fn ->
-        players
-        |> Tournament.new(rules_module, opts)
-        |> do_tournament(rules_module, rounds, self())
+        send(
+          caller,
+          {self(),
+           players
+           |> Tournament.new(rules_module, Keyword.put(opts, :i, i))
+           |> rules_module.play_tournament(Keyword.put(opts, :n, rounds))}
+        )
       end)
     end)
     |> Enum.map(fn pid ->
@@ -54,25 +59,5 @@ defmodule Prisoners do
           Tournament.finish(tournament)
       end
     end)
-  end
-
-  # play a tournament (all rounds) in process
-  defp do_tournament(tournament, rules_module, rounds, caller) do
-    tournament =
-      Enum.reduce(1..rounds, tournament, fn _, tournament ->
-        rules_module.play_round(tournament)
-      end)
-
-    %Tournament{tournament | finished_at: DateTime.utc_now()}
-    # Send message back to caller with result
-    send(caller, {self(), tournament})
-  end
-
-  @spec ensure_pos_integer(integer, atom) :: tuple
-  defp ensure_pos_integer(n, _) when is_integer(n) and n > 0, do: n
-
-  @spec ensure_pos_integer(tuple, atom) :: tuple
-  defp ensure_pos_integer(_, name) do
-    raise "Invalid option value: #{name} must be an integer greater than zero"
   end
 end

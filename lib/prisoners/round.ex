@@ -3,17 +3,32 @@ defmodule Prisoners.Round do
   Holds information about a single round
   """
 
-  alias Prisoners.FaceOff
+  alias Prisoners.{FaceOff, Round}
 
   @type t :: %__MODULE__{
-          players_count_at_start: integer,
-          players_count_at_finish: integer,
+          n: integer,
+          started_at: DateTime.t(),
+          finished_at: DateTime.t(),
           response_count_by_type: %{required(atom) => integer},
+          faceoffs_count: integer,
           faceoffs: [FaceOff.t()]
         }
 
-  defstruct players_count_at_start: 0,
-            players_count_at_finish: 0,
+  defstruct n: 0,
+            started_at: nil,
+            finished_at: nil,
             response_count_by_type: %{},
+            faceoffs_count: 0,
             faceoffs: []
+
+  def new do
+    %Round{
+      started_at: DateTime.utc_now()
+    }
+  end
+
+  def finish(round) do
+    round
+    |> Map.put(:finished_at, DateTime.utc_now())
+  end
 end

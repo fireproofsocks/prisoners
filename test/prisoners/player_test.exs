@@ -8,6 +8,18 @@ defmodule Prisoners.PlayerTest do
     test "instantiate a single player" do
       assert %Player{} = Player.new(AlwaysCooperate)
     end
+
+    test "nickname is based off of module name if no name provided" do
+      assert %Player{name: "AlwaysCooperate.0"} = Player.new(AlwaysCooperate)
+    end
+
+    test "nickname suffix incorporates i" do
+      assert %Player{name: "AlwaysCooperate.3"} = Player.new(AlwaysCooperate, i: 3)
+    end
+
+    test "nickname defers to explicit :name" do
+      assert %Player{name: "NiceGuy.0"} = Player.new(AlwaysCooperate, name: "NiceGuy")
+    end
   end
 
   describe "dump/1" do

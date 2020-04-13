@@ -32,20 +32,45 @@ defmodule Prisoners.Rules do
   Scoring could be as simple as a [Truth Table](https://en.wikipedia.org/wiki/Truth_table) defining what points a
   `Player` receives after it gives one response and the opponent gives another, or it could be dynamic depending
   on multiple variables such as how many points the other `Player` has or the state of the `Tournament`.
+  The Rules Engine gets to decide how simple or complex the scoring calculations are!
   """
   @callback calculate_score(
-              player1 :: Player.t(),
-              player2 :: Player.t(),
-              faceoff :: FaceOff.t(),
+              player1_pid :: pid,
+              player2_pid :: pid,
+              response1 :: atom,
+              response2 :: atom,
               tournament :: Tournament.t()
             ) :: {number, number}
+
+  @doc """
+  From the given tournament, return a list of the active player PIDs. These are the players which are to participate
+  in each round.
+
+  A default implementation is provided.
+  """
+  @callback get_active_player_ids(Tournament.t()) :: [pid]
+
+  @doc """
+  This callback frames the tournament play.
+
+  A default implementation is provided.
+  """
+  @callback play_tournament(tournament :: Tournament.t()) :: Tournament.t()
 
   @doc """
   This callback determines which players in the tournament must face-off with each other to constitute a round.
 
   A default implementation is provided.
   """
-  @callback play_round(tournament :: Tournament.t()) :: Tournament.t()
+  @callback play_round(tournament :: Tournament.t()) :: Round.t()
+
+  @doc """
+  This callback handles the interaction between two players.
+
+  A default implementation is provided.
+  """
+  @callback play_faceoff(pid1 :: pid, pid2 :: pid, tournament :: Tournament.t(), opts :: map) ::
+              FaceOff.t()
 
   @doc """
   Return a list of valid responses that a player may give during a faceoff encounter.
@@ -55,56 +80,94 @@ defmodule Prisoners.Rules do
   @callback valid_responses() :: [atom]
 
   @doc """
-  This callback handles the interaction between two players.
-
-  A default implementation is provided.
+  Determines if the given player status should be considered "active".  Active players may be awarded points and
+  continue playing into the next round.
   """
-  @callback faceoff(
-              player1 :: Player.t(),
-              player2 :: Player.t(),
-              tournament :: Tournament.t(),
-              caller :: pid
-            ) :: FaceOff.t()
+  @callback is_active_status?(atom) :: boolean
 
   defmacro __using__(_opts) do
     quote do
       alias Prisoners.{FaceOff, Player, Round, Rules, Tournament}
 
+      use Prisoners.Utils
+
       @behaviour Rules
 
       @impl Rules
-      def play_round(tournament) do
-        faceoffs = do_faceoffs(tournament)
-
-        round = %Round{
-          players_count_at_start: length(tournament.player_ids),
-          faceoffs: faceoffs
-        }
-
-        # TODO:
-        # weed out dead processes from player_ids
-        round = %Round{
-          round
-          | players_count_at_finish: length(tournament.player_ids),
-            response_count_by_type: Rules.summarize_faceoff_responses_by_type(round.faceoffs)
-        }
-
-        # call Player.after_round for each surviving player
-
-        # Prepend this round to the tournament log...
-        %Tournament{tournament | rounds: [round | tournament.rounds]}
+      def is_active_status?(status) do
+        Enum.member?([:live], status)
       end
 
-      # All faceoffs in a round happen concurrently, in parallel;
-      # they only have a copy of the %Tournament{} data from the _start_ of the
-      # round, so the players do not have "live updates" from the other faceoffs.
-      defp do_faceoffs(tournament) do
+      @doc """
+      Options:
+      `n` : number of rounds
+      """
+      @impl Rules
+      def play_tournament(tournament, opts \\ [])
+
+      def play_tournament(tournament, opts) do
+        n = ensure_pos_integer(Keyword.get(opts, :n, 1), :n)
+
+        Enum.reduce(
+          1..n,
+          tournament,
+          fn n, tournament ->
+            round = Round.new()
+
+            tournament
+            |> tournament.rules_module.play_round()
+            |> finish_round(round)
+            |> accounting_for_round(tournament)
+          end
+        )
+        |> Tournament.finish()
+      end
+
+      @spec finish_round([%FaceOff{}], Round.t()) :: Round.t()
+      defp finish_round(faceoffs, %Round{} = round) do
+        round
+        |> Map.put(:response_count_by_type, Rules.summarize_faceoff_responses_by_type(faceoffs))
+        |> Map.put(:faceoffs, faceoffs)
+        |> Round.finish()
+      end
+
+      # Award points, log encounters to inboxes/outboxes
+      @spec accounting_for_round(Round.t(), Tournament.t()) :: Tournament.t()
+      defp accounting_for_round(%Round{faceoffs: faceoffs} = round, %Tournament{} = tournament) do
+        faceoffs
+        |> Enum.reduce(tournament, fn %{
+                                        player1_id: pid1,
+                                        player2_id: pid2,
+                                        player1_response: resp1,
+                                        player2_response: resp2,
+                                        player1_points_received: p1_score,
+                                        player2_points_received: p2_score
+                                      },
+                                      acc ->
+          acc
+          |> Tournament.increment_score(pid1, p1_score)
+          |> Tournament.increment_score(pid2, p2_score)
+          |> Tournament.remember_encounter(pid1, pid2, resp1, resp2)
+        end)
+        |> Tournament.put_round(round)
+      end
+
+      @doc """
+      This implementation makes all faceoffs happen concurrently.
+      Each faceoff will have a copy of the %Tournament{} data from the _start_ of the
+      round, so the players do not have "live updates" from the other faceoffs.
+      """
+      @impl Rules
+      def play_round(tournament) do
         caller = self()
 
-        tournament.player_ids
+        tournament
+        |> get_active_player_ids()
         |> Rules.all_pairs()
         |> Enum.map(fn [pid1, pid2] ->
-          spawn(fn -> faceoff(pid1, pid2, tournament, caller) end)
+          spawn(fn ->
+            send(caller, {self(), play_faceoff(pid1, pid2, tournament)})
+          end)
         end)
         |> Enum.map(fn pid ->
           receive do
@@ -114,60 +177,49 @@ defmodule Prisoners.Rules do
       end
 
       @impl Rules
-      def faceoff(pid1, pid2, tournament, caller) do
+      def get_active_player_ids(tournament) do
+        tournament.player_ids
+        |> Enum.filter(fn pid ->
+          tournament
+          |> Tournament.player(pid, :status)
+          |> tournament.rules_module.is_active_status?()
+        end)
+      end
+
+      @impl Rules
+      def play_faceoff(pid1, pid2, tournament, opts \\ [])
+
+      def play_faceoff(pid1, pid2, tournament, _opts) do
         player1 = Tournament.player(tournament, pid1)
         player2 = Tournament.player(tournament, pid2)
-        # TODO: check response, kill process on bad response
-        player1_response = player1.module.respond(player2, tournament)
-        player2_response = player2.module.respond(player1, tournament)
 
-        # Remember the encounter
-        #        :ok = player1.module.remember_encounter(pid1, pid2, player1_response, player2_response)
-        #        :ok = player2.module.remember_encounter(pid2, pid1, player2_response, player1_response)
+        resp1 = player1.module.respond(player2, tournament)
+        resp2 = player2.module.respond(player1, tournament)
 
-        faceoff = %FaceOff{
+        {p1_score, p2_score} = calculate_score(pid1, pid2, resp1, resp2, tournament)
+
+        %FaceOff{
           player1_id: pid1,
           player2_id: pid2,
-          player1_response: player1_response,
-          player2_response: player2_response
+          player1_response: resp1,
+          player2_response: resp2,
+          player1_points_received: p1_score,
+          player2_points_received: p2_score
         }
-
-        {p1_score, p2_score} = calculate_score(pid1, pid2, faceoff, tournament)
-
-        # Remember the scores
-        :ok = player1.module.increment_score(pid1, p1_score)
-        :ok = player2.module.increment_score(pid2, p2_score)
-
-        #        faceoff = %FaceOff{
-        #          faceoff
-        #          | player1_points_received: p1_score,
-        #            player2_points_received: p2_score
-        #        }
-
-        # Send message back to caller with result
-        send(
-          caller,
-          {self(),
-           %FaceOff{
-             faceoff
-             | player1_points_received: p1_score,
-               player2_points_received: p2_score
-           }}
-        )
       end
 
       @impl Rules
       def valid_responses, do: [:defect, :cooperate]
 
       # A default implementation is provided, but a Rules Engine may implement their own
-      defoverridable play_round: 1, faceoff: 4, valid_responses: 0
+      defoverridable play_tournament: 1, play_round: 1, play_faceoff: 4, valid_responses: 0
     end
   end
 
   @doc """
   A reporting function which will summarize a list of faceoffs to tally the number of responses by response type.
   """
-  @spec summarize_faceoff_responses_by_type(faceoffs :: [Faceoff.t()]) :: map
+  @spec summarize_faceoff_responses_by_type(faceoffs :: [FaceOff.t()]) :: map
   def summarize_faceoff_responses_by_type(faceoffs) do
     Enum.reduce(
       faceoffs,

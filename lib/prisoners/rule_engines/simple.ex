@@ -31,8 +31,8 @@ defmodule Prisoners.RuleEngines.Simple do
   #  def after_round(player, _faceoff, _tournament), do: [player]
 
   @impl Rules
-  def calculate_score(_pid1, _pid2, faceoff, _tournament) do
-    lookup_score(faceoff.player1_response, faceoff.player2_response)
+  def calculate_score(_pid1, _pid2, resp1, resp2, _tournament) do
+    lookup_score(resp1, resp2)
   end
 
   @spec lookup_score(

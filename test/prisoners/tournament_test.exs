@@ -39,6 +39,11 @@ defmodule Prisoners.TournamentTest do
     test "raises error when player option n is not greater than zero" do
       assert_raise RuntimeError, fn -> Tournament.new([{AlwaysCooperate, n: -1}], Simple) end
     end
+
+    test "nickname uses both i and n" do
+      assert %Tournament{name: "2 of 3"} =
+               Tournament.new([{AlwaysCooperate, []}], Simple, i: 2, n: 3)
+    end
   end
 
   describe "finish/1" do
@@ -97,8 +102,8 @@ defmodule Prisoners.TournamentTest do
     test "updates properly" do
       tournament = Tournament.new([{AlwaysCooperate, []}], Simple)
 
-      assert %Tournament{rounds: [%Round{players_count_at_start: 7}]} =
-               Tournament.put_round(tournament, %Round{players_count_at_start: 7})
+      assert %Tournament{rounds: [%Round{faceoffs_count: 7}]} =
+               Tournament.put_round(tournament, %Round{faceoffs_count: 7})
     end
   end
 

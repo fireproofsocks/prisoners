@@ -102,17 +102,37 @@ defmodule Prisoners.Player do
   def new(player_module, opts \\ []) do
     {:ok, pid} = player_module.start_link(opts)
 
+    name =
+      opts
+      |> Keyword.get(:name, "")
+      |> String.trim()
+
+    i = Keyword.get(opts, :i, 0)
+
     %Player{
       id: pid,
-      name: Keyword.get(opts, :name, ""),
+      name: get_player_nickname(name, i, player_module),
       module: player_module,
       score: 0,
       inbox: %{},
       outbox: %{},
-      # <--- defer to Rules engine?
+      # defer starting status to Rules engine?
       status: :live
     }
   end
 
-  # TODO: get player nickname = name + n
+  @spec get_player_nickname(String.t(), n :: integer, atom) :: String.t()
+  defp get_player_nickname("", n, player_module) do
+    player_module
+    |> Atom.to_string()
+    |> String.split(".")
+    |> Enum.reverse()
+    |> hd()
+    |> get_player_nickname(n, player_module)
+  end
+
+  @spec get_player_nickname(String.t(), n :: integer, atom) :: String.t()
+  defp get_player_nickname(name, n, _module) do
+    "#{name}.#{n}"
+  end
 end
