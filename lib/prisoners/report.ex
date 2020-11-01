@@ -23,4 +23,48 @@ defmodule Prisoners.Report do
     {left, right} = String.split_at(string, half_string)
     String.pad_leading(left, half_screen, " ") <> String.pad_trailing(right, half_screen, " ")
   end
+
+  def time_elapsed(%DateTime{} = start_datetime, %DateTime{} = end_datetime) do
+    to_hh_mm_ss(DateTime.to_unix(end_datetime) - DateTime.to_unix(start_datetime))
+  end
+
+  @doc """
+  Convert seconds to HH:MM:SS format for readability.
+  See https://nickjanetakis.com/blog/formatting-seconds-into-hh-mm-ss-with-elixir-and-python
+  """
+
+  def to_hh_mm_ss(seconds) when seconds >= 3600 do
+    h = div(seconds, 3600)
+
+    m =
+      seconds
+      |> rem(3600)
+      |> div(60)
+      |> pad_int()
+
+    s =
+      seconds
+      |> rem(3600)
+      |> rem(60)
+      |> pad_int()
+
+    "#{h}:#{m}:#{s}"
+  end
+
+  def to_hh_mm_ss(seconds) do
+    m = div(seconds, 60)
+
+    s =
+      seconds
+      |> rem(60)
+      |> pad_int()
+
+    "#{m}:#{s}"
+  end
+
+  defp pad_int(int, padding \\ 2) do
+    int
+    |> Integer.to_string()
+    |> String.pad_leading(padding, "0")
+  end
 end

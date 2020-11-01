@@ -8,5 +8,5 @@ defmodule Prisoners.Strategies.AlwaysCooperate do
   use Player
 
   @impl Player
-  def respond(_opponent_pid, _tournament), do: :cooperate
+  def respond(_my_pid, _opponent_pid, _tournament), do: :cooperate
 end

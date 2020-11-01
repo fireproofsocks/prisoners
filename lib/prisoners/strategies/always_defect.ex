@@ -8,5 +8,5 @@ defmodule Prisoners.Strategies.AlwaysDefect do
   use Player
 
   @impl Player
-  def respond(_opponent_pid, _tournament), do: :defect
+  def respond(_my_pid, _opponent_pid, _tournament), do: :defect
 end

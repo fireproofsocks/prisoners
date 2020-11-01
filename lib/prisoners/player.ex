@@ -32,7 +32,7 @@ defmodule Prisoners.Player do
   In order for a player to play, it must respond with either `:cooperate` or `:defect` when it faces off with another
   player.
   """
-  @callback respond(opponent :: Player.t(), tournament :: Tournament.t()) :: Prisoners.response()
+  @callback respond(me :: pid, opponent :: pid, tournament :: Tournament.t()) :: Prisoners.response()
 
   @doc """
   This callback is called after a completed Tournament round for each of the players competing in the `Tournament`.

@@ -22,9 +22,6 @@ defmodule Prisoners.Reports.Summary do
         Report.justify("Prisoner's Dilemma Tournament Summary") <>
         IO.ANSI.default_background() <> IO.ANSI.normal()
     )
-
-    #    IO.puts()
-    #    IO.puts(IO.ANSI.default_background() <> IO.ANSI.normal())
     IO.puts("Concurrent Tournaments: #{length(tournaments)}")
 
     IO.puts(IO.ANSI.reset())
@@ -43,7 +40,8 @@ defmodule Prisoners.Reports.Summary do
   defp tournament_heading(tournament) do
     IO.puts(
       IO.ANSI.yellow() <>
-        "Tournament #{inspect(tournament.id)}" <>
+#        "Tournament #{inspect(tournament.id)}" <>
+        "Tournament #{tournament.name}" <>
         IO.ANSI.reset()
     )
 
@@ -51,12 +49,14 @@ defmodule Prisoners.Reports.Summary do
   end
 
   defp tournament_stats(tournament) do
-    IO.puts("Rounds Count: #{tournament.rounds_count}")
-    IO.puts("Players Count: #{tournament.players_count}")
+    IO.puts("#{tournament.players_count} players in #{tournament.rounds_count} rounds")
+    IO.puts("Start: #{tournament.started_at}")
+    IO.puts("Finish: #{tournament.finished_at}")
+    IO.puts("Duration: #{Report.time_elapsed(tournament.started_at, tournament.finished_at)}")
 
     tournament
     |> players_to_rows()
-    |> TableRex.quick_render!(["ID", "Module", "Score"])
+    |> TableRex.quick_render!(["Name", "Module", "Score"])
     |> IO.puts()
 
     IO.puts("")
@@ -67,7 +67,8 @@ defmodule Prisoners.Reports.Summary do
     tournament.players_map
     |> Map.values()
     |> Enum.map(fn x ->
-      [inspect(x.id), x.module, x.score]
+#      [inspect(x.id), x.module, x.score]
+      [x.name, x.module, x.score]
     end)
   end
 end

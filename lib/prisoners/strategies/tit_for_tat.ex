@@ -6,9 +6,24 @@ defmodule Prisoners.Strategies.TitForTat do
   """
 
   alias Prisoners.Player
+  alias Prisoners.Tournament
 
   use Player
 
   @impl Player
-  def respond(_opponent_ref, _tournament), do: :todo
+  def respond(my_pid, opponent_pid, tournament) do
+    %Player{outbox: outbox} = Tournament.player(tournament, opponent_pid)
+#    IO.inspect(tournament)
+#    IO.inspect(player)
+#    IO.puts("PID: #{self()}")
+    what_they_did_to_me = Map.get(outbox, my_pid, [])
+    case what_they_did_to_me do
+      [] ->
+        IO.puts("No history with them...")
+        :cooperate
+      [their_last_response | _older_responses] ->
+        IO.puts("They did #{their_last_response}")
+        their_last_response
+    end
+  end
 end

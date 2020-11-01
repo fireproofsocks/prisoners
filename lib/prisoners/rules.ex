@@ -193,8 +193,8 @@ defmodule Prisoners.Rules do
         player1 = Tournament.player(tournament, pid1)
         player2 = Tournament.player(tournament, pid2)
 
-        resp1 = player1.module.respond(player2, tournament)
-        resp2 = player2.module.respond(player1, tournament)
+        resp1 = player1.module.respond(pid1, pid2, tournament)
+        resp2 = player2.module.respond(pid2, pid1, tournament)
 
         {p1_score, p2_score} = calculate_score(pid1, pid2, resp1, resp2, tournament)
 
