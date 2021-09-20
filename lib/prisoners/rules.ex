@@ -1,9 +1,10 @@
 defmodule Prisoners.Rules do
   @moduledoc """
-  Defines the callback "hooks" that a rule engine must implement in order to properly govern a `Tournament`.
+  This module defines the callbacks that a rule engine must implement in order to
+  properly govern a `Tournament`. Many default implementations are provided.
 
-  These callback functions are intended to be open-ended: it is up to a specific implementation to determine how
-  simple or complex the rules are.
+  The callback functions are intended to be open-ended: it is up to a specific
+  implementation to determine how simple or complex the rules are.
   """
   alias Prisoners.{FaceOff, Player, Tournament}
 
@@ -26,12 +27,14 @@ defmodule Prisoners.Rules do
   #    @callback after_round(player :: Player.t, faceoff :: FaceOff.t, tournament :: Tournament.t) :: [Player.t]
 
   @doc """
-  Calculate the points to be awarded to the players after a `FaceOff`. The output of this function will be a tuple
-  representing the scores to be granted to `{player1, player2}` (in that order).
+  Calculate the points to be awarded to the players after a `FaceOff`. The output
+  of this function will be a tuple representing the scores to be granted to
+  `{player1, player2}` (in that order).
 
-  Scoring could be as simple as a [Truth Table](https://en.wikipedia.org/wiki/Truth_table) defining what points a
-  `Player` receives after it gives one response and the opponent gives another, or it could be dynamic depending
-  on multiple variables such as how many points the other `Player` has or the state of the `Tournament`.
+  Scoring could be as simple as a [Truth Table](https://en.wikipedia.org/wiki/Truth_table)
+  defining what points a `Player` receives after it gives one response and the
+  opponent gives another, or it could be dynamic depending on multiple variables
+  such as how many points the other `Player` has or the state of the `Tournament`.
   The Rules Engine gets to decide how simple or complex the scoring calculations are!
   """
   @callback calculate_score(
@@ -43,8 +46,8 @@ defmodule Prisoners.Rules do
             ) :: {number, number}
 
   @doc """
-  From the given tournament, return a list of the active player PIDs. These are the players which are to participate
-  in each round.
+  From the given tournament, return a list of the active player PIDs. These are
+  the players which are to participate in each round.
 
   A default implementation is provided.
   """
@@ -58,7 +61,8 @@ defmodule Prisoners.Rules do
   @callback play_tournament(tournament :: Tournament.t()) :: Tournament.t()
 
   @doc """
-  This callback determines which players in the tournament must face-off with each other to constitute a round.
+  This callback determines which players in the tournament must face-off with
+  each other to constitute a round.
 
   A default implementation is provided.
   """
@@ -80,8 +84,8 @@ defmodule Prisoners.Rules do
   @callback valid_responses() :: [atom]
 
   @doc """
-  Determines if the given player status should be considered "active".  Active players may be awarded points and
-  continue playing into the next round.
+  Determines if the given player status should be considered "active".
+  Active players may be awarded points and continue playing into the next round.
   """
   @callback is_active_status?(atom) :: boolean
 

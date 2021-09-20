@@ -7,9 +7,9 @@ defmodule Prisoners.Report do
   alias Prisoners.Tournament
 
   @doc """
-  The function that implements this callback should take whatever actions needed to satisfy the report,
-  and when finished, it should return the _original_ unmodified input so that additional reporting
-  modules may be chained together.
+  The function that implements this callback should take whatever actions needed
+  to satisfy the report, and when finished, it should return the _original_
+  unmodified input so that additional reporting modules may be chained together.
   """
   @callback report(tournaments :: [Tournament.t()], opts :: keyword) :: [Tournament.t()]
 

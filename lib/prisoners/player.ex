@@ -32,7 +32,8 @@ defmodule Prisoners.Player do
   In order for a player to play, it must respond with either `:cooperate` or `:defect` when it faces off with another
   player.
   """
-  @callback respond(me :: pid, opponent :: pid, tournament :: Tournament.t()) :: Prisoners.response()
+  @callback respond(me :: pid, opponent :: pid, tournament :: Tournament.t()) ::
+              Prisoners.response()
 
   @doc """
   This callback is called after a completed Tournament round for each of the players competing in the `Tournament`.
@@ -131,7 +132,6 @@ defmodule Prisoners.Player do
     |> get_player_nickname(n, player_module)
   end
 
-  @spec get_player_nickname(String.t(), n :: integer, atom) :: String.t()
   defp get_player_nickname(name, n, _module) do
     "#{name}.#{n}"
   end

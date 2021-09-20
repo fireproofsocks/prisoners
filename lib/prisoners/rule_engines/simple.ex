@@ -1,7 +1,7 @@
 defmodule Prisoners.RuleEngines.Simple do
   @moduledoc """
-  This is a basic implementation of the original tournament idea: the important part is that defection is incentivized,
-  regardless of the other players's response.
+  This is a basic implementation of the original tournament idea: the important
+  part is that defection is incentivized, regardless of the other players's response.
 
   1 of 2 possible responses (following the verbiage from the original discussion of the
   [Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma#Strategy_for_the_prisoner's_dilemma) game):
@@ -22,6 +22,7 @@ defmodule Prisoners.RuleEngines.Simple do
   and there is no reproduction of winning player strategies.
   """
   alias Prisoners.Rules
+
   use Rules
 
   #  @impl Rules
@@ -38,7 +39,7 @@ defmodule Prisoners.RuleEngines.Simple do
   @spec lookup_score(
           player_response :: Prisoners.response(),
           opponent_response :: Prisoners.response()
-        ) :: number
+        ) :: {number(), number()}
   defp lookup_score(:cooperate, :cooperate), do: {1, 1}
   defp lookup_score(:cooperate, :defect), do: {-1, 2}
   defp lookup_score(:defect, :cooperate), do: {2, -1}

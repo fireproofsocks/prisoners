@@ -19,16 +19,18 @@ def deps do
   ]
 end
 ```
+
 4. Update your dependencies: `mix deps.get`
 
-5. Create a tournament.
+5. Create a tournament lineup -- see examples inside `lineups/`.
 
 6. Run it. You can run scripts in the context of your mix project with `mix run`, e.g. `mix run strategies/example.exs`. See `mix help run` for more information.
 
 ## Competing
 
-When two competing strategies encounter one another during a tournament competition they can choose any possible response 
-that is allowed by the rule engine.  
+When two competing strategies encounter one another during a tournament competition they can choose any possible response
+that is allowed by the rule engine. Although this is abstracted 
+to allow for future flexibility, for now only the `Prisoners.RuleEngines.Simple` rules engine is included. It 
 
 It is up to the rules engine to determine exactly how the round is played; for example, an engine may or may not force 
 encounters between all participating players. See the `Rules.play_round/1` callback.

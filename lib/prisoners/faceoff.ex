@@ -1,6 +1,7 @@
 defmodule Prisoners.FaceOff do
   @moduledoc """
-  Defines a single faceoff between 2 players. This structure is defined as an aid for consistent logging and reporting.
+  Defines a single faceoff between 2 players. This structure is defined as an
+  aid for consistent logging and reporting.
   """
 
   @type t :: %__MODULE__{
@@ -28,11 +29,13 @@ defmodule Prisoners.FaceOff do
   Creates a new `%Faceoff{}` struct.
   """
   def new do
+    # TODO
   end
 
   @doc """
   Finalizes the faceoff.
   """
   def finish do
+    # TODO
   end
 end

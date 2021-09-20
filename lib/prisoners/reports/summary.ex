@@ -22,6 +22,7 @@ defmodule Prisoners.Reports.Summary do
         Report.justify("Prisoner's Dilemma Tournament Summary") <>
         IO.ANSI.default_background() <> IO.ANSI.normal()
     )
+
     IO.puts("Concurrent Tournaments: #{length(tournaments)}")
 
     IO.puts(IO.ANSI.reset())
@@ -39,8 +40,8 @@ defmodule Prisoners.Reports.Summary do
 
   defp tournament_heading(tournament) do
     IO.puts(
+      #        "Tournament #{inspect(tournament.id)}" <>
       IO.ANSI.yellow() <>
-#        "Tournament #{inspect(tournament.id)}" <>
         "Tournament #{tournament.name}" <>
         IO.ANSI.reset()
     )
@@ -67,7 +68,7 @@ defmodule Prisoners.Reports.Summary do
     tournament.players_map
     |> Map.values()
     |> Enum.map(fn x ->
-#      [inspect(x.id), x.module, x.score]
+      #      [inspect(x.id), x.module, x.score]
       [x.name, x.module, x.score]
     end)
   end
